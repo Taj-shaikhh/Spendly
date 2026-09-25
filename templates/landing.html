@@ -17,59 +17,60 @@
         </p>
         <div class="hero-actions">
             <a href="{{ url_for('register') }}" class="btn-primary">Create free account</a>
-            <a href="#" class="btn-primary">See how it works</a>
+            <a href="#" id="open-demo" class="btn-primary">See how it works</a>
         </div>
     </div>
     <div class="hero-visual">
-        <div class="mock-card">
-            <div class="mock-card-dots">
-                <span class="dot red"></span>
-                <span class="dot yellow"></span>
-                <span class="dot green"></span>
-            </div>
-            <div class="mock-stats-grid">
-                <div class="stat-card">
-                    <span class="stat-label">This month</span>
-                    <span class="stat-value">₹18,240</span>
-                    <span class="stat-trend trend-up">+12% vs last</span>
-                </div>
-                <div class="stat-card">
-                    <span class="stat-label">Budget left</span>
-                    <span class="stat-value">₹6,760</span>
-                    <span class="stat-trend trend-down">43% remaining</span>
-                </div>
-                <div class="stat-card">
-                    <span class="stat-label">Transactions</span>
-                    <span class="stat-value">34</span>
-                    <span class="stat-trend">this month</span>
-                </div>
-            </div>
-            <div class="mock-bars">
-                <div class="mock-bar-row">
-                    <span class="mock-cat">Food</span>
-                    <div class="mock-bar-track">
-                        <div class="mock-bar bar-food" style="width: 72%"></div>
-                    </div>
-                    <span class="mock-amt">₹4,500</span>
-                </div>
-                <div class="mock-bar-row">
-                    <span class="mock-cat">Travel</span>
-                    <div class="mock-bar-track">
-                        <div class="mock-bar bar-travel" style="width: 52%"></div>
-                    </div>
-                    <span class="mock-amt">₹3,200</span>
-                </div>
-                <div class="mock-bar-row">
-                    <span class="mock-cat">Bills</span>
-                    <div class="mock-bar-track">
-                        <div class="mock-bar bar-bills" style="width: 33%"></div>
-                    </div>
-                    <span class="mock-amt">₹2,050</span>
-                </div>
-            </div>
-        </div>
+    <!-- ... existing content ... -->
     </div>
 </section>
+
+<!-- Video Modal -->
+<div id="video-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center; padding: 2rem;">
+    <div style="position: relative; width: 100%; max-width: 800px; background: #000; border-radius: var(--radius-md); overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.5);">
+        <button id="close-modal" style="position: absolute; top: 1rem; right: 1rem; background: rgba(255,255,255,0.2); color: white; border: none; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; z-index: 10; font-size: 1.2rem;">&times;</button>
+        <div style="position: relative; padding-bottom: 56.25%; height: 0;">
+            <iframe id="demo-video" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;" src="" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+        </div>
+    </div>
+</div>
+
+{% block scripts %}
+{{ super() }}
+<script>
+    (function() {
+        const modal = document.getElementById('video-modal');
+        const openBtn = document.getElementById('open-demo');
+        const closeBtn = document.getElementById('close-modal');
+        const video = document.getElementById('demo-video');
+        const videoSrc = "https://www.youtube.com/embed/dQw4w9WgXcQ"; // Placeholder
+
+        function openModal() {
+            video.src = videoSrc + "?autoplay=1";
+            modal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal() {
+            video.src = "";
+            modal.style.display = 'none';
+            document.body.style.overflow = '';
+        }
+
+        openBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            openModal();
+        });
+
+        closeBtn.addEventListener('click', closeModal);
+
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeModal();
+        });
+    })();
+</script>
+{% endblock %}
+
 
 <section class="features">
     <div class="features-inner">
