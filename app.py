@@ -1,7 +1,12 @@
-from flask import Flask, render_template
-from database.db import init_db, seed_db
+import sqlite3
+from flask import Flask, render_template, request, redirect, url_for, flash
+from database.db import init_db, seed_db, create_user
+
+
 
 app = Flask(__name__)
+app.secret_key = "dev-secret-key-for-spendly"
+
 
 
 # ------------------------------------------------------------------ #
@@ -13,13 +18,44 @@ def landing():
     return render_template("landing.html")
 
 
-@app.route("/register")
+@app.route("/register", methods=["GET", "POST"])
 def register():
+    if request.method == "POST":
+        name = request.form.get("name")
+        email = request.form.get("email")
+        password = request.form.get("password")
+        confirm_password = request.form.get("confirm_password")
+
+        if not all([name, email, password, confirm_password]):
+            flash("All fields are required", "error")
+            return render_template("register.html")
+
+        if password != confirm_password:
+            flash("Passwords do not match", "error")
+            return render_template("register.html")
+
+        try:
+            create_user(name, email, password)
+            flash("Account created successfully! Please sign in.", "success")
+            return redirect(url_for("login"))
+        except sqlite3.IntegrityError:
+            flash("Email already registered", "error")
+            return render_template("register.html")
+        except Exception:
+            flash("An unexpected error occurred", "error")
+            return render_template("register.html")
+
+
     return render_template("register.html")
 
 
-@app.route("/login")
+
+@app.route("/login", methods=["GET", "POST"])
 def login():
+    if request.method == "POST":
+        # Login logic will be implemented in the next step
+        pass
+
     return render_template("login.html")
 
 
