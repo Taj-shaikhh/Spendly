@@ -85,3 +85,8 @@ def seed_db():
             expenses
         )
         conn.commit()
+
+def get_user_by_email(email):
+    """Retrieves a user by their email address. Returns a sqlite3.Row or None."""
+    with get_db() as conn:
+        return conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
