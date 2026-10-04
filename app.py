@@ -124,7 +124,33 @@ def logout():
 @app.route("/profile")
 @login_required
 def profile():
-    return "Profile page — coming in Step 4"
+    # Hardcoded data for UI design validation (Step 4)
+    context = {
+        "user": {
+            "name": "Demo User",
+            "email": "demo@spendly.com",
+            "member_since": "October 2026",
+            "initials": "DU"
+        },
+        "stats": {
+            "total_spent": "₹12,450.00",
+            "transaction_count": 42,
+            "top_category": "Food"
+        },
+        "transactions": [
+            {"date": "2026-10-04", "description": "Dinner at Italian Place", "category": "Food", "amount": "₹1,200.00"},
+            {"date": "2026-10-03", "description": "Monthly Internet Bill", "category": "Bills", "amount": "₹850.00"},
+            {"date": "2026-10-02", "description": "Weekly Grocery", "category": "Food", "amount": "₹2,400.00"},
+            {"date": "2026-10-01", "description": "Uber Ride", "category": "Transport", "amount": "₹320.00"},
+        ],
+        "categories": [
+            {"name": "Food", "total": "₹5,400.00", "percentage": 43},
+            {"name": "Bills", "total": "₹3,200.00", "percentage": 25},
+            {"name": "Transport", "total": "₹2,100.00", "percentage": 17},
+            {"name": "Other", "total": "₹1,750.00", "percentage": 15},
+        ]
+    }
+    return render_template("profile.html", **context)
 
 
 @app.route("/expenses/add")
