@@ -18,7 +18,7 @@ def guest_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if session.get("user_id"):
-            return redirect(url_for("landing"))
+            return redirect(url_for("profile"))
         return f(*args, **kwargs)
     return decorated_function
 
@@ -40,6 +40,7 @@ def login_required(f):
 # ------------------------------------------------------------------ #
 
 @app.route("/")
+@guest_required
 def landing():
     return render_template("landing.html")
 
@@ -92,7 +93,7 @@ def login():
         if user and check_password_hash(user["password_hash"], password):
             session["user_id"] = user["id"]
             flash(f"Welcome back, {user['name']}!", "success")
-            return redirect(url_for("landing"))
+            return redirect(url_for("profile"))
 
         flash("Invalid email or password.", "error")
         return render_template("login.html")

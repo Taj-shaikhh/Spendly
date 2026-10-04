@@ -2,10 +2,14 @@
 
 {% block title %}My Profile — Spendly{% endblock %}
 
+{% block head %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/profile.css') }}">
+{% endblock %}
+
 {% block content %}
 <div class="profile-container">
     <!-- User Info Card -->
-    <section class="profile-card auth-card">
+    <section class="profile-card">
         <div class="profile-card-inner">
             <div class="profile-avatar">{{ user.initials }}</div>
             <div class="profile-details">
@@ -51,7 +55,7 @@
                         <tr>
                             <td>{{ tx.date }}</td>
                             <td>{{ tx.description }}</td>
-                            <td><span class="category-badge">{{ tx.category }}</span></td>
+                            <td><span class="category-badge" data-category="{{ tx.category }}">{{ tx.category }}</span></td>
                             <td class="text-right">{{ tx.amount }}</td>
                         </tr>
                         {% endfor %}
@@ -71,7 +75,7 @@
                         <span class="cat-total">{{ cat.total }}</span>
                     </div>
                     <div class="category-bar-container">
-                        <div class="category-bar-fill" style="width: {{ cat.percentage }}%;"></div>
+                        <div class="category-bar-fill" style="--bar-width: {{ cat.percentage }}%; width: var(--bar-width);"></div>
                     </div>
                 </div>
                 {% endfor %}
