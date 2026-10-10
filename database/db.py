@@ -90,3 +90,59 @@ def get_user_by_email(email):
     """Retrieves a user by their email address. Returns a sqlite3.Row or None."""
     with get_db() as conn:
         return conn.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
+
+def get_user_details(user_id):
+    """Retrieves basic profile details for a user. Returns a sqlite3.Row or None."""
+    with get_db() as conn:
+        return conn.execute(
+            "SELECT name, email, created_at FROM users WHERE id = ?",
+            (user_id,)
+        ).fetchone()
+
+def get_category_breakdown(user_id):
+    """
+    Returns a list of categories and their total spend for a given user.
+    Returns a list of sqlite3.Row objects.
+    """
+    with get_db() as conn:
+        return conn.execute(
+            "SELECT category, SUM(amount) as total FROM expenses WHERE user_id = ? GROUP BY category",
+            (user_id,)
+        ).fetchall()
+
+def get_recent_transactions(user_id, limit=5):
+    """
+    Returns a list of recent expenses for the user, ordered by date DESC.
+    Returns a list of dictionaries.
+    """
+    with get_db() as conn:
+        rows = conn.execute(
+            "SELECT date, description, category, amount FROM expenses WHERE user_id = ? ORDER BY date DESC LIMIT ?",
+            (user_id, limit)
+        ).fetchall()
+        return [dict(row) for row in rows]
+
+def get_spending_summary(user_id):
+    """
+    Returns a summary of spending for a user.
+    Returns a dictionary with total_spent, transaction_count, and top_category.
+    """
+    with get_db() as conn:
+        # Total spent and transaction count
+        summary = conn.execute(
+            "SELECT SUM(amount) as total_spent, COUNT(*) as transaction_count FROM expenses WHERE user_id = ?",
+            (user_id,)
+        ).fetchone()
+
+        # Top category
+        top_cat = conn.execute(
+            "SELECT category FROM expenses WHERE user_id = ? GROUP BY category ORDER BY SUM(amount) DESC LIMIT 1",
+            (user_id,)
+        ).fetchone()
+
+        return {
+            "total_spent": summary["total_spent"] if summary["total_spent"] else 0.0,
+            "transaction_count": summary["transaction_count"],
+            "top_category": top_cat["category"] if top_cat else None
+        }
+

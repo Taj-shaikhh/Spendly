@@ -1,6 +1,6 @@
 import sqlite3
-from flask import Flask, render_template, request, redirect, url_for, flash, session
-from database.db import init_db, seed_db, create_user, get_user_by_email
+from flask import Flask, render_template, request, redirect, url_for, flash, session, abort
+from database.db import init_db, seed_db, create_user, get_user_by_email, get_category_breakdown, get_recent_transactions, get_user_details, get_spending_summary
 from werkzeug.security import check_password_hash
 from functools import wraps
 
@@ -125,31 +125,67 @@ def logout():
 @app.route("/profile")
 @login_required
 def profile():
-    # Hardcoded data for UI design validation (Step 4)
+    user_id = session.get("user_id")
+
+    # 1. Fetch User Details
+    user_row = get_user_details(user_id)
+    if not user_row:
+        abort(404)
+
+    # Format member_since (from 'YYYY-MM-DD HH:MM:SS' to 'Month YYYY')
+    created_at = user_row["created_at"]
+    import datetime
+    dt = datetime.datetime.strptime(created_at, "%Y-%m-%d %H:%M:%S")
+    member_since = dt.strftime("%B %Y")
+
+    user_data = {
+        "name": user_row["name"],
+        "email": user_row["email"],
+        "member_since": member_since,
+        "initials": "".join([n[0].upper() for n in user_row["name"].split()])
+    }
+
+    # 2. Fetch Spending Summary
+    summary = get_spending_summary(user_id)
+    stats = {
+        "total_spent": f"₹{summary['total_spent']:,.2f}",
+        "transaction_count": summary["transaction_count"],
+        "top_category": summary["top_category"] or "None"
+    }
+
+    # 3. Fetch Recent Transactions
+    transactions_rows = get_recent_transactions(user_id)
+    transactions = [
+        {
+            "date": row["date"],
+            "description": row["description"],
+            "category": row["category"],
+            "amount": f"₹{row['amount']:,.2f}"
+        }
+        for row in transactions_rows
+    ]
+
+    # 4. Fetch Category Breakdown
+    breakdown_rows = get_category_breakdown(user_id)
+    total_spend = sum(row["total"] for row in breakdown_rows)
+
+    categories = []
+    for row in breakdown_rows:
+        percentage = 0
+        if total_spend > 0:
+            percentage = round((row["total"] / total_spend) * 100)
+
+        categories.append({
+            "name": row["category"],
+            "total": f"₹{row['total']:,.2f}",
+            "percentage": percentage
+        })
+
     context = {
-        "user": {
-            "name": "Demo User",
-            "email": "demo@spendly.com",
-            "member_since": "October 2026",
-            "initials": "DU"
-        },
-        "stats": {
-            "total_spent": "₹12,450.00",
-            "transaction_count": 42,
-            "top_category": "Food"
-        },
-        "transactions": [
-            {"date": "2026-10-04", "description": "Dinner at Italian Place", "category": "Food", "amount": "₹1,200.00"},
-            {"date": "2026-10-03", "description": "Monthly Internet Bill", "category": "Bills", "amount": "₹850.00"},
-            {"date": "2026-10-02", "description": "Weekly Grocery", "category": "Food", "amount": "₹2,400.00"},
-            {"date": "2026-10-01", "description": "Uber Ride", "category": "Transport", "amount": "₹320.00"},
-        ],
-        "categories": [
-            {"name": "Food", "total": "₹5,400.00", "percentage": 43},
-            {"name": "Bills", "total": "₹3,200.00", "percentage": 25},
-            {"name": "Transport", "total": "₹2,100.00", "percentage": 17},
-            {"name": "Other", "total": "₹1,750.00", "percentage": 15},
-        ]
+        "user": user_data,
+        "stats": stats,
+        "transactions": transactions,
+        "categories": categories
     }
     return render_template("profile.html", **context)
 
