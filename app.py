@@ -3,12 +3,55 @@ from flask import Flask, render_template, request, redirect, url_for, flash, ses
 from database.db import init_db, seed_db, create_user, get_user_by_email, get_category_breakdown, get_recent_transactions, get_user_details, get_spending_summary
 from werkzeug.security import check_password_hash
 from functools import wraps
+import datetime
 
 
 
 app = Flask(__name__)
 app.secret_key = "dev-secret-key-for-spendly"
 
+
+# ------------------------------------------------------------------ #
+# Helpers                                                                #
+# ------------------------------------------------------------------ #
+
+def _validate_dates(date_from, date_to):
+    """Validates date strings and ensures start date is before end date."""
+    if not date_from and not date_to:
+        return None, None, True
+
+    try:
+        if date_from:
+            datetime.datetime.strptime(date_from, "%Y-%m-%d")
+        if date_to:
+            datetime.datetime.strptime(date_to, "%Y-%m-%d")
+
+        if date_from and date_to and date_from > date_to:
+            return None, None, False
+    except ValueError:
+        return None, None, False
+
+    return date_from, date_to, True
+
+def _get_date_presets():
+    """Calculates the fixed date ranges for the profile presets."""
+    today = datetime.date.today()
+    first_of_month = today.replace(day=1)
+
+    return {
+        "this_month": {
+            "from": first_of_month.strftime("%Y-%m-%d"),
+            "to": today.strftime("%Y-%m-%d")
+        },
+        "last_3_months": {
+            "from": (today - datetime.timedelta(days=90)).strftime("%Y-%m-%d"),
+            "to": today.strftime("%Y-%m-%d")
+        },
+        "last_6_months": {
+            "from": (today - datetime.timedelta(days=180)).strftime("%Y-%m-%d"),
+            "to": today.strftime("%Y-%m-%d")
+        }
+    }
 
 # ------------------------------------------------------------------ #
 # Auth Guards                                                         #
@@ -127,14 +170,54 @@ def logout():
 def profile():
     user_id = session.get("user_id")
 
-    # 1. Fetch User Details
+    # 1. Date Filtering Logic
+    date_from = request.args.get("date_from")
+    date_to = request.args.get("date_to")
+
+    # Validate dates
+    import datetime
+    valid_dates = True
+    if date_from or date_to:
+        try:
+            if date_from:
+                datetime.datetime.strptime(date_from, "%Y-%m-%d")
+            if date_to:
+                datetime.datetime.strptime(date_to, "%Y-%m-%d")
+
+            if date_from and date_to and date_from > date_to:
+                flash("Start date must be before end date.", "error")
+                date_from = date_to = None
+                valid_dates = False
+        except ValueError:
+            date_from = date_to = None
+            valid_dates = False
+
+    # Calculate Presets
+    today = datetime.date.today()
+    first_of_month = today.replace(day=1)
+
+    presets = {
+        "this_month": {
+            "from": first_of_month.strftime("%Y-%m-%d"),
+            "to": today.strftime("%Y-%m-%d")
+        },
+        "last_3_months": {
+            "from": (today - datetime.timedelta(days=90)).strftime("%Y-%m-%d"),
+            "to": today.strftime("%Y-%m-%d")
+        },
+        "last_6_months": {
+            "from": (today - datetime.timedelta(days=180)).strftime("%Y-%m-%d"),
+            "to": today.strftime("%Y-%m-%d")
+        }
+    }
+
+    # 2. Fetch User Details
     user_row = get_user_details(user_id)
     if not user_row:
         abort(404)
 
     # Format member_since (from 'YYYY-MM-DD HH:MM:SS' to 'Month YYYY')
     created_at = user_row["created_at"]
-    import datetime
     dt = datetime.datetime.strptime(created_at, "%Y-%m-%d %H:%M:%S")
     member_since = dt.strftime("%B %Y")
 
@@ -145,16 +228,16 @@ def profile():
         "initials": "".join([n[0].upper() for n in user_row["name"].split()])
     }
 
-    # 2. Fetch Spending Summary
-    summary = get_spending_summary(user_id)
+    # 3. Fetch Spending Summary
+    summary = get_spending_summary(user_id, date_from, date_to)
     stats = {
         "total_spent": f"₹{summary['total_spent']:,.2f}",
         "transaction_count": summary["transaction_count"],
         "top_category": summary["top_category"] or "None"
     }
 
-    # 3. Fetch Recent Transactions
-    transactions_rows = get_recent_transactions(user_id)
+    # 4. Fetch Recent Transactions
+    transactions_rows = get_recent_transactions(user_id, date_from=date_from, date_to=date_to)
     transactions = [
         {
             "date": row["date"],
@@ -165,8 +248,8 @@ def profile():
         for row in transactions_rows
     ]
 
-    # 4. Fetch Category Breakdown
-    breakdown_rows = get_category_breakdown(user_id)
+    # 5. Fetch Category Breakdown
+    breakdown_rows = get_category_breakdown(user_id, date_from, date_to)
     total_spend = sum(row["total"] for row in breakdown_rows)
 
     categories = []
@@ -185,7 +268,10 @@ def profile():
         "user": user_data,
         "stats": stats,
         "transactions": transactions,
-        "categories": categories
+        "categories": categories,
+        "date_from": date_from,
+        "date_to": date_to,
+        "presets": presets
     }
     return render_template("profile.html", **context)
 
