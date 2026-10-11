@@ -99,46 +99,70 @@ def get_user_details(user_id):
             (user_id,)
         ).fetchone()
 
-def get_category_breakdown(user_id):
+def get_category_breakdown(user_id, date_from=None, date_to=None):
     """
     Returns a list of categories and their total spend for a given user.
+    Optional date range filtering supported.
     Returns a list of sqlite3.Row objects.
     """
     with get_db() as conn:
-        return conn.execute(
-            "SELECT category, SUM(amount) as total FROM expenses WHERE user_id = ? GROUP BY category",
-            (user_id,)
-        ).fetchall()
+        query = "SELECT category, SUM(amount) as total FROM expenses WHERE user_id = ?"
+        params = [user_id]
 
-def get_recent_transactions(user_id, limit=5):
+        if date_from and date_to:
+            query += " AND date BETWEEN ? AND ?"
+            params.extend([date_from, date_to])
+
+        query += " GROUP BY category"
+        return conn.execute(query, params).fetchall()
+
+def get_recent_transactions(user_id, limit=5, date_from=None, date_to=None):
     """
     Returns a list of recent expenses for the user, ordered by date DESC.
+    Optional date range filtering supported.
     Returns a list of dictionaries.
     """
     with get_db() as conn:
-        rows = conn.execute(
-            "SELECT date, description, category, amount FROM expenses WHERE user_id = ? ORDER BY date DESC LIMIT ?",
-            (user_id, limit)
-        ).fetchall()
+        query = "SELECT date, description, category, amount FROM expenses WHERE user_id = ?"
+        params = [user_id]
+
+        if date_from and date_to:
+            query += " AND date BETWEEN ? AND ?"
+            params.extend([date_from, date_to])
+
+        query += " ORDER BY date DESC LIMIT ?"
+        params.append(limit)
+
+        rows = conn.execute(query, params).fetchall()
         return [dict(row) for row in rows]
 
-def get_spending_summary(user_id):
+def get_spending_summary(user_id, date_from=None, date_to=None):
     """
     Returns a summary of spending for a user.
+    Optional date range filtering supported.
     Returns a dictionary with total_spent, transaction_count, and top_category.
     """
     with get_db() as conn:
         # Total spent and transaction count
-        summary = conn.execute(
-            "SELECT SUM(amount) as total_spent, COUNT(*) as transaction_count FROM expenses WHERE user_id = ?",
-            (user_id,)
-        ).fetchone()
+        query_stats = "SELECT SUM(amount) as total_spent, COUNT(*) as transaction_count FROM expenses WHERE user_id = ?"
+        params_stats = [user_id]
+
+        if date_from and date_to:
+            query_stats += " AND date BETWEEN ? AND ?"
+            params_stats.extend([date_from, date_to])
+
+        summary = conn.execute(query_stats, params_stats).fetchone()
 
         # Top category
-        top_cat = conn.execute(
-            "SELECT category FROM expenses WHERE user_id = ? GROUP BY category ORDER BY SUM(amount) DESC LIMIT 1",
-            (user_id,)
-        ).fetchone()
+        query_cat = "SELECT category FROM expenses WHERE user_id = ? "
+        params_cat = [user_id]
+
+        if date_from and date_to:
+            query_cat += " AND date BETWEEN ? AND ?"
+            params_cat.extend([date_from, date_to])
+
+        query_cat += " GROUP BY category ORDER BY SUM(amount) DESC LIMIT 1"
+        top_cat = conn.execute(query_cat, params_cat).fetchone()
 
         return {
             "total_spent": summary["total_spent"] if summary["total_spent"] else 0.0,
