@@ -3,6 +3,8 @@ from werkzeug.security import generate_password_hash
 
 DB_PATH = "spendly.db"
 
+EXPENSE_CATEGORIES = ['Food', 'Transport', 'Bills', 'Health', 'Entertainment', 'Shopping', 'Other']
+
 def get_db():
     """Returns a SQLite connection with row_factory and foreign keys enabled."""
     conn = sqlite3.connect(DB_PATH)
@@ -169,4 +171,13 @@ def get_spending_summary(user_id, date_from=None, date_to=None):
             "transaction_count": summary["transaction_count"],
             "top_category": top_cat["category"] if top_cat else None
         }
+
+def insert_expense(user_id, amount, category, date, description):
+    """Inserts a new expense for a user into the database."""
+    with get_db() as conn:
+        conn.execute(
+            "INSERT INTO expenses (user_id, amount, category, date, description) VALUES (?, ?, ?, ?, ?)",
+            (user_id, amount, category, date, description)
+        )
+        conn.commit()
 

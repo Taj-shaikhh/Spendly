@@ -1,6 +1,6 @@
 import sqlite3
 from flask import Flask, render_template, request, redirect, url_for, flash, session, abort
-from database.db import init_db, seed_db, create_user, get_user_by_email, get_category_breakdown, get_recent_transactions, get_user_details, get_spending_summary
+from database.db import init_db, seed_db, create_user, get_user_by_email, get_category_breakdown, get_recent_transactions, get_user_details, get_spending_summary, insert_expense, EXPENSE_CATEGORIES
 from werkzeug.security import check_password_hash
 from functools import wraps
 import datetime
@@ -276,10 +276,53 @@ def profile():
     return render_template("profile.html", **context)
 
 
-@app.route("/expenses/add")
+@app.route("/expenses/add", methods=["GET", "POST"])
 @login_required
 def add_expense():
-    return "Add expense — coming in Step 7"
+    if request.method == "POST":
+        amount_str = request.form.get("amount")
+        category = request.form.get("category")
+        date_str = request.form.get("date")
+        description = request.form.get("description", "").strip() or None
+
+        # Validation
+        errors = []
+        amount = None
+
+        try:
+            amount = float(amount_str)
+            if amount <= 0:
+                errors.append("Amount must be greater than zero.")
+        except (TypeError, ValueError):
+            errors.append("Amount must be a valid number.")
+
+        allowed_categories = EXPENSE_CATEGORIES
+        if not category or category not in allowed_categories:
+            errors.append("Please select a valid category.")
+
+        if not date_str:
+            errors.append("Date is required.")
+        else:
+            try:
+                datetime.datetime.strptime(date_str, "%Y-%m-%d")
+            except ValueError:
+                errors.append("Invalid date format.")
+
+        if errors:
+            for error in errors:
+                flash(error, "error")
+            return render_template("add_expense.html",
+                                   form_data=request.form,
+                                   today=datetime.date.today().strftime("%Y-%m-%d"),
+                                   categories=EXPENSE_CATEGORIES)
+
+        # Success - Save to DB
+        user_id = session.get("user_id")
+        insert_expense(user_id, amount, category, date_str, description)
+        flash("Expense added successfully!", "success")
+        return redirect(url_for("profile"))
+
+    return render_template("add_expense.html", today=datetime.date.today().strftime("%Y-%m-%d"), categories=EXPENSE_CATEGORIES)
 
 
 @app.route("/expenses/<int:id>/edit")
